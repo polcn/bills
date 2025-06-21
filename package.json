@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "Minimal Bill's financial management API",
   "main": "handler.js",
-  "dependencies": {},
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.830.0",
+    "@aws-sdk/lib-dynamodb": "^3.830.0",
+    "aws-sdk": "^2.1692.0"
+  },
   "devDependencies": {
     "serverless": "^3.30.0"
   }

@@ -118,17 +118,29 @@ The system automatically categorizes transactions:
 
 #### Upload Fails
 - Check file size (under 5MB)
-- Verify CSV format
+- Verify CSV format matches expected headers
 - Ensure required columns exist
 - Try Generic format if bank-specific fails
+- Hard refresh browser (Ctrl+F5) if upload succeeds but data doesn't appear
 
 #### Missing Data
 - Check Dashboard tab after upload
-- Allow 30 seconds for processing
-- Refresh page if needed
+- Data appears immediately (no processing delay)
+- Hard refresh page if data doesn't show
+- Check "Manage Uploads" tab to verify upload was recorded
+
+#### AMEX Issues
+- Download CSV from AMEX website "Statements & Activity" section
+- Ensure all 13 columns are present including Category
+- Format: Date,Description,Card Member,Account #,Amount,Extended Details,Appears On Your Statement As,Address,City/State,Zip Code,Country,Reference,Category
+
+#### Truist Issues
+- Currently debugging format compatibility
+- Contact support if upload fails
+- Expected format: Account Type,Account Number,Date,Description,Debit,Credit,Running Balance
 
 #### Wrong Categories
-- System learns from merchant names
+- AMEX categories come from bank's classification
 - Manual categorization coming in future updates
 
 ### 9. Privacy & Security

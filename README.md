@@ -150,11 +150,14 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 ## 📊 Current Status
 
 - ✅ **MVP Complete** - Core functionality working
-- ✅ **UI Deployed** - Live cyber-themed dashboard
-- ✅ **CSV Upload** - AMEX & Truist support
-- ✅ **Data Visualization** - Charts and statistics
-- 🔄 **Database Integration** - Currently using mock data
-- 📋 **Future:** Real-time bank connections, budgeting, mobile app
+- ✅ **UI Deployed** - Live cyber-themed dashboard at http://bill-finance-ui-1750520483.s3-website-us-east-1.amazonaws.com
+- ✅ **CSV Upload** - AMEX working, Truist debugging in progress
+- ✅ **Data Visualization** - Charts and statistics with real data
+- ✅ **Duplicate Prevention** - Prevents duplicate transaction uploads
+- ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab
+- ✅ **Persistent Storage** - Lambda global storage (survives container lifecycle)
+- 🔄 **Truist Parser** - Currently debugging user-specific CSV format issues
+- 📋 **Future:** DynamoDB integration, real-time bank connections, budgeting, mobile app
 
 ## 🤝 Contributing
 

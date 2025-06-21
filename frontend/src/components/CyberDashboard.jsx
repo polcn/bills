@@ -17,6 +17,7 @@ const NEON_COLORS = ['#00d4ff', '#00ff88', '#b84dff', '#ff4db8', '#ffdd00', '#ff
 export default function CyberDashboard() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploads, setUploads] = useState([]);
   const [stats, setStats] = useState({
     totalSpent: 0,
     totalIncome: 0,
@@ -40,10 +41,53 @@ export default function CyberDashboard() {
       const data = await response.json();
       setTransactions(data.transactions || []);
       calculateStats(data.transactions || []);
+      
+      // Group transactions by upload for delete functionality
+      const uploadsMap = {};
+      (data.transactions || []).forEach(txn => {
+        if (txn.upload_id) {
+          if (!uploadsMap[txn.upload_id]) {
+            uploadsMap[txn.upload_id] = {
+              id: txn.upload_id,
+              filename: txn.upload_filename || 'Unknown',
+              source: txn.source,
+              count: 0,
+              created_at: txn.created_at
+            };
+          }
+          uploadsMap[txn.upload_id].count++;
+        }
+      });
+      
+      setUploads(Object.values(uploadsMap).sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      ));
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteUpload = async (uploadId) => {
+    if (!confirm('Are you sure you want to delete this upload and all its transactions?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/uploads/${uploadId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete upload');
+      }
+      
+      // Reload transactions to refresh the view
+      await loadTransactions();
+    } catch (error) {
+      console.error('Error deleting upload:', error);
+      alert('Failed to delete upload. Please try again.');
     }
   };
 
@@ -123,6 +167,7 @@ export default function CyberDashboard() {
   const tabs = [
     { id: 'upload', label: 'Upload CSV', icon: ChartBarIcon },
     { id: 'dashboard', label: 'Dashboard', icon: BanknotesIcon },
+    { id: 'uploads', label: 'Manage Uploads', icon: CreditCardIcon },
   ];
 
   return (
@@ -178,6 +223,50 @@ export default function CyberDashboard() {
               <p className="text-gray-400">Drop your CSV files and watch the magic happen</p>
             </div>
             <CSVUpload onUploadComplete={handleUploadComplete} />
+          </div>
+        )}
+
+        {activeTab === 'uploads' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent mb-2">
+                Manage Uploads
+              </h2>
+              <p className="text-gray-400">View and delete your uploaded CSV files</p>
+            </div>
+
+            <div className="grid gap-4">
+              {uploads.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No uploads yet. Upload a CSV file to get started!</p>
+                </div>
+              ) : (
+                uploads.map((upload) => (
+                  <div key={upload.id} className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-neon-blue/50 transition-all duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-lg font-semibold text-white">{upload.filename}</h3>
+                          <span className="text-xs px-2 py-1 bg-neon-blue/20 text-neon-blue rounded-full">
+                            {upload.source?.replace('csv_', '').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                          <span>{upload.count} transactions</span>
+                          <span>{new Date(upload.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deleteUpload(upload.id)}
+                        className="px-4 py-2 bg-neon-pink/20 text-neon-pink border border-neon-pink/30 rounded-lg hover:bg-neon-pink/30 transition-all duration-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 

@@ -1,0 +1,10 @@
+{
+  "name": "bill-minimal",
+  "version": "1.0.0",
+  "description": "Minimal Bill's financial management API",
+  "main": "handler.js",
+  "dependencies": {},
+  "devDependencies": {
+    "serverless": "^3.30.0"
+  }
+}

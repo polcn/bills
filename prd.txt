@@ -1,0 +1,37 @@
+For the ultimate in control, efficiency, and customization, this tier outlines a blueprint for a fully custom-built financial management solution. This approach replaces the commercial application entirely, creating a system perfectly tailored to the couple's specific rules and workflow. It is the end-state for a technologist who wants to own the entire stack and achieve maximum automation.
+
+System Architecture: A Serverless AWS Framework
+The proposed architecture is built on a modern, scalable, and cost-effective serverless framework within AWS.
+
+Frontend: A secure, lightweight web application built with a framework like React or Vue. It would be hosted on a service like AWS Amplify or a combination of Amazon S3 (for static file hosting) and Amazon CloudFront (for content delivery). This interface would be the dashboard for the user and their partner to review transactions, resolve ambiguities, and view settlement reports.
+
+API Layer: Amazon API Gateway will serve as the front door, providing secure RESTful endpoints for the frontend application to communicate with the backend logic.
+
+Compute: AWS Lambda functions will contain all the business logic. This serverless approach ensures that compute resources are only used when needed, minimizing cost.
+
+Storage: The system will use a dual-storage strategy. Amazon S3 will be used for storing unstructured data like raw receipt images and parsed emails. Amazon DynamoDB, a high-performance NoSQL database, will serve as the primary datastore for structured transaction data.
+
+Authentication: Amazon Cognito will manage user authentication and authorization, securing access to both the frontend application and the API Gateway.
+
+Module 1: Multi-Source Data Ingestion Pipeline
+This module is responsible for automatically collecting financial data from all relevant sources.
+
+A. Bank & Card Transactions (The Plaid Pipeline)
+Process: A scheduled AWS Lambda function, triggered by Amazon EventBridge (e.g., running daily), will connect to the Plaid API to fetch new transactions.
+
+Plaid Products: The core of this pipeline is the Transactions product, which provides a stream of transaction data from linked AMEX and checking accounts. To improve data quality, the    
+
+Enrich product can be used to clean up cryptic merchant descriptions and provide standardized names and category suggestions.   
+
+API Interaction: The process follows Plaid's standard flow: using /link/token/create to initiate the connection, exchanging the resulting public_token for a long-lived access_token, and then periodically calling /transactions/sync with a stored cursor to retrieve only new or updated transactions. The raw JSON response from Plaid is then processed and stored in the DynamoDB database. Plaid officially supports American Express for its Transactions product via a secure OAuth connection, though the potential for intermittent connectivity issues should be anticipated.   
+
+B. Digital Retail Receipts (The Email Parser Pipeline)
+Process: For retailers like Amazon that do not offer a consumer-facing transaction API, this pipeline will parse order confirmation emails to extract item-level detail.
+
+Technology: A dedicated email address (e.g., receipts@yourdomain.com) is set up using Amazon Simple Email Service (SES). An SES rule is configured to trigger a Lambda function upon receipt of a new email. This Lambda function then parses the email body. While simple regex could be used for a single vendor, a more robust and flexible solution would involve calling an email parsing API like Airparser or Mailparser , or using an LLM to intelligently extract structured data (items, prices, order total) from the unstructured email content.   
+
+C. Physical Receipts (The OCR Pipeline)
+Process: This pipeline mirrors the architecture from the Tier 2 model: a mobile upload to an S3 bucket triggers a Lambda function for processing.
+
+Technology Recommendation: The recommended technology is AWS Textract, specifically its AnalyzeExpense API. As established previously, this API is superior to generalist OCR tools like Google Cloud Vision for this specific use case because it is pre-trained to understand the structure of receipts. It automatically identifies line items, quantities, prices, vendor details, and totals, providing a structured output that drastically simplifies downstream processing.   
+

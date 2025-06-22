@@ -135,6 +135,21 @@ exports.api = async (event) => {
 
     if (httpMethod === 'GET' && path === '/transactions') {
       try {
+        // Initialize memory store if empty
+        if (!global.transactionStore || global.transactionStore.length === 0) {
+          global.transactionStore = [];
+          
+          // Load existing data from DynamoDB on cold start
+          try {
+            const dbTransactions = await loadFromDynamoDB();
+            global.transactionStore = dbTransactions;
+            console.log(`Lambda cold start - loaded ${dbTransactions.length} transactions from DynamoDB`);
+          } catch (error) {
+            console.error('Failed to load from DynamoDB:', error.message);
+            console.log('Lambda cold start - memory store initialized empty');
+          }
+        }
+        
         const transactions = global.transactionStore || [];
         
         // Sort by date descending
@@ -146,7 +161,8 @@ exports.api = async (event) => {
           body: JSON.stringify({
             transactions: transactions,
             count: transactions.length,
-            totalInDB: transactions.length
+            totalInDB: transactions.length,
+            memoryStoreActive: true
           }),
         };
       } catch (error) {
@@ -368,21 +384,29 @@ function parseAmexCSV(headers, dataLines, uploadId, fileName) {
 
 function parseTruistCSV(headers, dataLines, uploadId, fileName) {
   const transactions = [];
-  console.log(`Truist parser - headers: ${headers.join(', ')}`);
+  console.log(`Truist parser - headers received: [${headers.join(', ')}]`);
   console.log(`Truist parser - processing ${dataLines.length} data lines`);
   
-  // Find column indices dynamically
-  const dateCol = findColumnIndex(headers, ['date', 'posted date', 'transaction date']);
-  const descCol = findColumnIndex(headers, ['description', 'memo', 'transaction']);
-  const debitCol = findColumnIndex(headers, ['debit', 'withdrawal', 'amount debit']);
-  const creditCol = findColumnIndex(headers, ['credit', 'deposit', 'amount credit']);
-  const amountCol = findColumnIndex(headers, ['amount', 'transaction amount']);
+  // Find column indices dynamically with expanded search terms
+  const dateCol = findColumnIndex(headers, ['posted date', 'date', 'transaction date', 'trans date']);
+  const descCol = findColumnIndex(headers, ['description', 'memo', 'details', 'payee']);
+  const debitCol = findColumnIndex(headers, ['debit', 'withdrawal', 'amount debit', 'withdrawals']);
+  const creditCol = findColumnIndex(headers, ['credit', 'deposit', 'amount credit', 'deposits']);
+  const amountCol = findColumnIndex(headers, ['amount', 'transaction amount', 'trans amount']);
   
-  console.log(`Truist column mapping - date: ${dateCol}, desc: ${descCol}, debit: ${debitCol}, credit: ${creditCol}, amount: ${amountCol}`);
+  console.log(`Truist column mapping - date: ${dateCol}(${headers[dateCol] || 'N/A'}), desc: ${descCol}(${headers[descCol] || 'N/A'}), debit: ${debitCol}(${headers[debitCol] || 'N/A'}), credit: ${creditCol}(${headers[creditCol] || 'N/A'}), amount: ${amountCol}(${headers[amountCol] || 'N/A'})`);
   
-  if (dateCol === -1 || descCol === -1) {
-    console.log('Could not find required date or description columns');
-    return transactions;
+  if (dateCol === -1) {
+    throw new Error(`Could not find date column. Available headers: ${headers.join(', ')}`);
+  }
+  
+  if (descCol === -1) {
+    throw new Error(`Could not find description column. Available headers: ${headers.join(', ')}`);
+  }
+  
+  // Must have either debit/credit columns OR amount column
+  if (debitCol === -1 && creditCol === -1 && amountCol === -1) {
+    throw new Error(`Could not find amount columns (debit/credit or amount). Available headers: ${headers.join(', ')}`);
   }
   
   for (const line of dataLines) {
@@ -398,34 +422,64 @@ function parseTruistCSV(headers, dataLines, uploadId, fileName) {
     try {
       let amount = 0;
       
-      if (amountCol !== -1 && values[amountCol]) {
+      if (amountCol !== -1 && values[amountCol] && values[amountCol].toString().trim() !== '') {
         // Handle Truist format: ($133.08) for debits, $2,229.90 for credits
         let amountStr = values[amountCol].toString().trim();
         console.log(`Truist raw amount string: "${amountStr}"`);
         
-        // Remove commas and dollar signs
-        amountStr = amountStr.replace(/[$,]/g, '');
+        // Remove commas, dollar signs, and extra spaces
+        amountStr = amountStr.replace(/[$,\s]/g, '');
         
         // Check for parentheses (negative)
         if (amountStr.startsWith('(') && amountStr.endsWith(')')) {
           amountStr = amountStr.slice(1, -1); // Remove parentheses
-          amount = -parseFloat(amountStr) || 0;
+          amount = -Math.abs(parseFloat(amountStr)) || 0;
         } else {
           amount = parseFloat(amountStr) || 0;
         }
+        console.log(`Truist amount parsed from single amount column: ${amount}`);
       } else {
-        const debit = (debitCol !== -1 && values[debitCol]) ? (parseFloat(values[debitCol]) || 0) : 0;
-        const credit = (creditCol !== -1 && values[creditCol]) ? (parseFloat(values[creditCol]) || 0) : 0;
-        amount = credit > 0 ? credit : -Math.abs(debit);
+        // Handle separate debit/credit columns
+        const debitStr = (debitCol !== -1 && values[debitCol]) ? values[debitCol].toString().trim() : '';
+        const creditStr = (creditCol !== -1 && values[creditCol]) ? values[creditCol].toString().trim() : '';
+        
+        console.log(`Truist debit string: "${debitStr}", credit string: "${creditStr}"`);
+        
+        const debit = debitStr !== '' ? (parseFloat(debitStr.replace(/[$,\s]/g, '')) || 0) : 0;
+        const credit = creditStr !== '' ? (parseFloat(creditStr.replace(/[$,\s]/g, '')) || 0) : 0;
+        
+        // Credit is positive income, debit is negative spending
+        if (credit > 0) {
+          amount = credit;
+        } else if (debit > 0) {
+          amount = -Math.abs(debit);
+        } else {
+          amount = 0;
+        }
+        console.log(`Truist amount parsed from debit/credit columns: debit=${debit}, credit=${credit}, final amount=${amount}`);
       }
       
       console.log(`Truist parsed amount: ${amount} from debit/credit/amount columns`);
       
+      // Validate parsed date
+      const parsedDate = parseDate(values[dateCol]);
+      if (!parsedDate || parsedDate === 'Invalid Date') {
+        console.log(`Skipping transaction - invalid date: "${values[dateCol]}"`);
+        continue;
+      }
+      
+      // Validate description
+      const description = values[descCol] ? values[descCol].trim() : '';
+      if (!description || description.length === 0) {
+        console.log(`Skipping transaction - empty description`);
+        continue;
+      }
+      
       const transaction = {
         id: `truist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        date: parseDate(values[dateCol]),
-        name: values[descCol] || 'Unknown Transaction',
-        merchant_name: values[descCol] || 'Unknown Merchant',
+        date: parsedDate,
+        name: description,
+        merchant_name: description,
         amount: amount,
         account_id: 'truist_manual',
         category: ['General'],
@@ -435,15 +489,16 @@ function parseTruistCSV(headers, dataLines, uploadId, fileName) {
         upload_id: uploadId,
         upload_filename: fileName,
         created_at: new Date().toISOString(),
-        duplicate_key: `${values[dateCol]}_${values[descCol]}_${amount}_truist`
+        duplicate_key: `${values[dateCol]}_${description}_${amount}_truist`
       };
       
-      console.log(`Truist transaction created: ${transaction.name} - ${transaction.amount} on ${transaction.date}`);
+      console.log(`Truist transaction created: ID=${transaction.id}, Name="${transaction.name}", Amount=${transaction.amount}, Date="${transaction.date}"`);
       
-      if (transaction.date && transaction.amount !== 0) {
+      // Only add non-zero transactions with valid dates
+      if (amount !== 0) {
         transactions.push(transaction);
       } else {
-        console.log(`Skipping transaction - invalid date (${transaction.date}) or zero amount (${transaction.amount})`);
+        console.log(`Skipping transaction - zero amount`);
       }
     } catch (error) {
       console.error('Error parsing Truist line:', line, error);
@@ -605,6 +660,105 @@ async function checkDuplicate(transaction) {
 }
 
 async function saveTransaction(transaction) {
+  // Add to memory store for fast access
   global.transactionStore.push(transaction);
+  
+  // Also save to DynamoDB for persistence
+  try {
+    await saveToDynamoDB(transaction);
+    console.log(`Transaction saved to DynamoDB: ${transaction.id}`);
+  } catch (dbError) {
+    console.error('Failed to save to DynamoDB, continuing with memory only:', dbError);
+  }
+  
   return {};
+}
+
+async function saveToDynamoDB(transaction) {
+  try {
+    // Use AWS SDK v3 style calls through native Lambda runtime
+    const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+    
+    const client = new DynamoDBClient({ region: 'us-east-1' });
+    const tableName = process.env.TRANSACTIONS_TABLE || 'bill-finance-minimal-dev-transactions';
+    
+    const params = {
+      TableName: tableName,
+      Item: {
+        id: { S: transaction.id },
+        user_id: { S: 'user1' },
+        date: { S: transaction.date },
+        name: { S: transaction.name },
+        merchant_name: { S: transaction.merchant_name || transaction.name },
+        amount: { N: transaction.amount.toString() },
+        account_id: { S: transaction.account_id },
+        category: { SS: transaction.category },
+        subcategory: { SS: transaction.subcategory },
+        iso_currency_code: { S: transaction.iso_currency_code },
+        source: { S: transaction.source },
+        upload_id: { S: transaction.upload_id },
+        upload_filename: { S: transaction.upload_filename },
+        created_at: { S: transaction.created_at },
+        duplicate_key: { S: transaction.duplicate_key }
+      },
+      ConditionExpression: 'attribute_not_exists(id)' // Prevent duplicates
+    };
+    
+    const command = new PutItemCommand(params);
+    await client.send(command);
+    console.log(`Successfully saved to DynamoDB: ${transaction.id}`);
+    
+  } catch (error) {
+    if (error.name === 'ConditionalCheckFailedException') {
+      console.log(`Transaction already exists in DynamoDB: ${transaction.id}`);
+    } else {
+      console.error('DynamoDB save error:', error.message);
+      throw error;
+    }
+  }
+}
+
+async function loadFromDynamoDB() {
+  try {
+    const { DynamoDBClient, ScanCommand } = require('@aws-sdk/client-dynamodb');
+    
+    const client = new DynamoDBClient({ region: 'us-east-1' });
+    const tableName = process.env.TRANSACTIONS_TABLE || 'bill-finance-minimal-dev-transactions';
+    
+    const params = {
+      TableName: tableName,
+      FilterExpression: 'user_id = :user_id',
+      ExpressionAttributeValues: {
+        ':user_id': { S: 'user1' }
+      }
+    };
+    
+    const command = new ScanCommand(params);
+    const result = await client.send(command);
+    
+    // Convert DynamoDB format back to our transaction format
+    const transactions = result.Items.map(item => ({
+      id: item.id.S,
+      date: item.date.S,
+      name: item.name.S,
+      merchant_name: item.merchant_name.S,
+      amount: parseFloat(item.amount.N),
+      account_id: item.account_id.S,
+      category: item.category.SS || ['General'],
+      subcategory: item.subcategory.SS || ['Manual Upload'],
+      iso_currency_code: item.iso_currency_code.S,
+      source: item.source.S,
+      upload_id: item.upload_id.S,
+      upload_filename: item.upload_filename.S,
+      created_at: item.created_at.S,
+      duplicate_key: item.duplicate_key.S
+    }));
+    
+    console.log(`Loaded ${transactions.length} transactions from DynamoDB`);
+    return transactions;
+    
+  } catch (error) {
+    console.error('Error loading from DynamoDB:', error.message);
+    return [];
+  }
 }

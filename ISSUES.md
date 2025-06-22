@@ -1,18 +1,27 @@
 # Known Issues and Fixes
 
-## Fixed Issues
+## 🚨 CRITICAL UNRESOLVED ISSUES
 
-### 🔧 CRITICAL FIX: Delete Upload Functionality
-**Issue:** Deleting uploads only removed transactions from memory, not DynamoDB. After Lambda cold starts, deleted transactions would reappear.
+### ❌ BROKEN: Delete Upload Functionality
+**Issue:** Deleting uploads causes ALL deleted transactions to reappear after Lambda cold starts.
 
-**Root Cause:** Delete function only operated on `global.transactionStore` memory but didn't delete from persistent DynamoDB storage.
+**Current Behavior:** 
+- Delete appears to work initially (removes from memory)
+- After any Lambda cold start, ALL previously deleted transactions return
+- No workarounds available - delete functionality completely broken
 
-**Fix Applied:** 
-- Added `deleteFromDynamoDB()` function to permanently remove transactions
-- Modified delete endpoint to remove from both memory AND DynamoDB
-- Ensures deletions persist across Lambda cold starts
+**Root Cause:** 
+- Delete function attempts to remove from both memory and DynamoDB
+- DynamoDB deletion may be failing silently or incompletely
+- Cold start reloads ALL data from DynamoDB, including "deleted" transactions
 
-**Status:** ✅ RESOLVED - Transactions now permanently deleted from both memory and DynamoDB
+**Attempted Fix:** Added `deleteFromDynamoDB()` function but issue persists
+
+**Status:** 🚨 BROKEN - Delete functionality does not work reliably
+
+**Priority:** CRITICAL - Must be fixed before system is production-ready
+
+## ✅ RESOLVED ISSUES
 
 ### 🔧 Data Persistence Enhancement
 **Issue:** Data could appear to be lost during Lambda cold starts.

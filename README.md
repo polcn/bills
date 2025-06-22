@@ -160,7 +160,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 - ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab  
 - ✅ **Persistent Storage** - DynamoDB with cold-start loading and memory caching
 - ✅ **Cross-Source Detection** - Same transaction from multiple banks prevented
-- ✅ **Reliable Deletion** - Upload deletion works permanently (fixed DynamoDB sync)
+- ❌ **Upload Deletion** - BROKEN: Deleted transactions reappear after cold starts
 - ✅ **Multi-Source Ingestion** - CSV files and receipt photos
 - 📋 **Future:** Email receipt parsing, budget tracking, bill splitting, full Textract OCR
 

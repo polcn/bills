@@ -24,7 +24,7 @@
 - ✅ **Persistent DynamoDB Storage** - Data survives Lambda cold starts
 - ✅ **Memory Caching** - Fast access with automatic DynamoDB loading
 - ✅ **Advanced Duplicate Detection** - Cross-session and cross-source prevention
-- ✅ **Upload Management** - Delete functionality with permanent DynamoDB removal (FIXED)
+- ❌ **Upload Management** - Delete functionality BROKEN (transactions reappear after cold starts)
 - ✅ **Transaction Count** - 275+ real transactions currently stored
 - ✅ **Cross-Source Deduplication** - Same transaction from multiple banks prevented
 
@@ -97,5 +97,13 @@
 - Environment variables configured for dev stage
 - CORS enabled for frontend-backend communication
 - Git repository ready for GitHub push
+
+## 🚨 CRITICAL ISSUES
+
+### ❌ BROKEN: Delete Upload Functionality
+- **Problem:** Deleted transactions reappear after Lambda cold starts
+- **Impact:** Users cannot permanently remove uploads or transactions
+- **Status:** Needs immediate investigation and proper fix
+- **Priority:** CRITICAL
 
 *Last Updated: June 22, 2025*

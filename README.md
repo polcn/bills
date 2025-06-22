@@ -15,9 +15,10 @@ A sleek, cyber-themed serverless financial management system built on AWS with C
 - **Responsive design** that looks great on all devices
 - **Real-time data visualization** with interactive charts
 
-### 📊 CSV Upload & Processing
-- **Smart bank detection** (AMEX, Truist, Generic)
-- **Drag & drop interface** with live preview
+### 📊 Multi-Source Data Ingestion
+- **CSV Upload** - Smart bank detection (AMEX, Truist, Generic)
+- **Receipt Upload** - Photo processing with OCR capabilities
+- **Drag & drop interface** with live preview for all uploads
 - **Automatic categorization** of transactions
 - **Real-time validation** and error handling
 
@@ -37,9 +38,9 @@ A sleek, cyber-themed serverless financial management system built on AWS with C
 
 ### For Users
 1. Visit the dashboard: http://bill-finance-ui-1750520483.s3-website-us-east-1.amazonaws.com
-2. Download CSV from your bank (AMEX, Truist, etc.)
-3. Upload via the cyber-themed interface
-4. View your financial data with beautiful visualizations
+2. **Upload CSV files** from your bank (AMEX, Truist, etc.)
+3. **Upload receipt photos** for automatic processing
+4. View your financial data with beautiful cyber-themed visualizations
 
 ### For Developers
 ```bash
@@ -149,15 +150,16 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 
 ## 📊 Current Status
 
-- ✅ **MVP Complete** - Core functionality working
+- ✅ **MVP Complete** - Core functionality working with real data
 - ✅ **UI Deployed** - Live cyber-themed dashboard at http://bill-finance-ui-1750520483.s3-website-us-east-1.amazonaws.com
-- ✅ **CSV Upload** - AMEX working, Truist debugging in progress
-- ✅ **Data Visualization** - Charts and statistics with real data
+- ✅ **CSV Upload** - AMEX and Truist formats fully working
+- ✅ **Receipt Upload** - Photo upload with mock OCR processing (demo mode)
+- ✅ **Data Visualization** - Charts and statistics with real transaction data
 - ✅ **Duplicate Prevention** - Prevents duplicate transaction uploads
 - ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab
-- ✅ **Persistent Storage** - Lambda global storage (survives container lifecycle)
-- 🔄 **Truist Parser** - Currently debugging user-specific CSV format issues
-- 📋 **Future:** DynamoDB integration, real-time bank connections, budgeting, mobile app
+- ✅ **Persistent Storage** - Lambda global storage (fast performance for demo)
+- ✅ **Multi-Source Ingestion** - CSV files and receipt photos
+- 📋 **Future:** Email receipt parsing, budget tracking, bill splitting, full Textract OCR
 
 ## 🤝 Contributing
 

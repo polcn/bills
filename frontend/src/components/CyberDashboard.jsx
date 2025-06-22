@@ -5,10 +5,12 @@ import {
   ArrowTrendingDownIcon,
   CreditCardIcon,
   BanknotesIcon,
-  ClockIcon
+  ClockIcon,
+  CameraIcon
 } from '@heroicons/react/24/outline';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import CSVUpload from './CSVUpload';
+import ReceiptUpload from './ReceiptUpload';
 
 const API_BASE_URL = 'https://8bvnp8f956.execute-api.us-east-1.amazonaws.com/dev';
 
@@ -166,6 +168,7 @@ export default function CyberDashboard() {
 
   const tabs = [
     { id: 'upload', label: 'Upload CSV', icon: ChartBarIcon },
+    { id: 'receipt', label: 'Upload Receipt', icon: CameraIcon },
     { id: 'dashboard', label: 'Dashboard', icon: BanknotesIcon },
     { id: 'uploads', label: 'Manage Uploads', icon: CreditCardIcon },
   ];
@@ -223,6 +226,18 @@ export default function CyberDashboard() {
               <p className="text-gray-400">Drop your CSV files and watch the magic happen</p>
             </div>
             <CSVUpload onUploadComplete={handleUploadComplete} />
+          </div>
+        )}
+
+        {activeTab === 'receipt' && (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent mb-2">
+                Upload Receipts
+              </h2>
+              <p className="text-gray-400">Snap a photo or upload receipt images for automatic processing</p>
+            </div>
+            <ReceiptUpload onUpload={handleUploadComplete} />
           </div>
         )}
 

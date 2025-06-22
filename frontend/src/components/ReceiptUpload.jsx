@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { CloudArrowUpIcon, DocumentIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentIcon, CheckCircleIcon, CameraIcon } from '@heroicons/react/24/outline';
+
+const API_BASE_URL = 'https://8bvnp8f956.execute-api.us-east-1.amazonaws.com/dev';
 
 export default function ReceiptUpload({ onUpload }) {
   const [uploading, setUploading] = useState(false);
@@ -13,9 +15,9 @@ export default function ReceiptUpload({ onUpload }) {
     const file = files[0];
     
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Please upload a valid image (JPG, PNG) or PDF file.');
+      alert('Please upload a valid image (JPG, PNG).');
       return;
     }
 
@@ -29,36 +31,54 @@ export default function ReceiptUpload({ onUpload }) {
       setUploading(true);
       setUploadSuccess(false);
 
-      // For now, we'll simulate the upload process
-      // In production, this would upload to S3 which triggers the receipt processing
-      await simulateUpload(file);
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Data = event.target.result;
+
+        const response = await fetch(`${API_BASE_URL}/upload/receipt`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageData: base64Data,
+            fileName: file.name,
+            fileType: file.type
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const result = await response.json();
+        console.log('Receipt upload successful:', result);
+        
+        setUploadSuccess(true);
+        if (onUpload) {
+          onUpload(result);
+        }
+
+        // Reset success state after 5 seconds
+        setTimeout(() => {
+          setUploadSuccess(false);
+        }, 5000);
+        
+        setUploading(false);
+      };
+
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+
+      reader.readAsDataURL(file);
       
-      setUploadSuccess(true);
-      if (onUpload) {
-        onUpload();
-      }
-
-      // Reset success state after 3 seconds
-      setTimeout(() => {
-        setUploadSuccess(false);
-      }, 3000);
-
     } catch (error) {
       console.error('Error uploading receipt:', error);
       alert('Error uploading receipt. Please try again.');
-    } finally {
       setUploading(false);
     }
-  };
-
-  const simulateUpload = (file) => {
-    return new Promise((resolve) => {
-      // Simulate upload delay
-      setTimeout(() => {
-        console.log('Receipt uploaded:', file.name);
-        resolve();
-      }, 2000);
-    });
   };
 
   const handleDrop = (e) => {
@@ -124,16 +144,16 @@ export default function ReceiptUpload({ onUpload }) {
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mb-3" />
+            <CameraIcon className="h-12 w-12 text-gray-400 mb-3" />
             <p className="text-bill-primary font-medium mb-1">
               Drop your receipt here or click to browse
             </p>
             <p className="text-sm text-gray-500 mb-3">
-              Supports JPG, PNG, and PDF files up to 10MB
+              Supports JPG and PNG files up to 10MB
             </p>
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <DocumentIcon className="h-4 w-4" />
-              <span>Receipts are processed automatically with OCR technology</span>
+              <span>Receipts processed with AWS Textract OCR (demo mode)</span>
             </div>
           </div>
         )}

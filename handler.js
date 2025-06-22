@@ -1,3 +1,6 @@
+// Note: Using global storage for now - DynamoDB integration deferred due to SDK complexity
+const dynamodb = null; // Placeholder for future DynamoDB integration
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
@@ -5,6 +8,7 @@ const corsHeaders = {
 };
 
 const TABLE_NAME = process.env.TRANSACTIONS_TABLE || 'bill-finance-minimal-dev-transactions';
+const RECEIPTS_BUCKET = process.env.RECEIPTS_BUCKET || 'bill-receipts-1750520483';
 
 // Persistent storage using Lambda environment (limited but works for demo)
 global.transactionStore = global.transactionStore || [];
@@ -196,6 +200,86 @@ exports.api = async (event) => {
       }
     }
 
+    if (httpMethod === 'POST' && path === '/upload/receipt') {
+      const body = JSON.parse(event.body || '{}');
+      const { imageData, fileName, fileType = 'image/jpeg' } = body;
+
+      if (!imageData) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'imageData is required' }),
+        };
+      }
+
+      try {
+        // Convert base64 to buffer
+        const buffer = Buffer.from(imageData.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+        
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substr(2, 9);
+        const key = `receipts/${timestamp}_${randomId}_${fileName || 'receipt.jpg'}`;
+
+        console.log(`Processing receipt upload: ${key}, size: ${buffer.length} bytes`);
+
+        // For now, simulate processing and return mock data
+        // In a real implementation, this would:
+        // 1. Upload to S3
+        // 2. Trigger Textract analysis
+        // 3. Parse results into transaction format
+
+        const mockTransaction = {
+          id: `receipt_${timestamp}_${randomId}`,
+          date: new Date().toISOString().split('T')[0],
+          name: 'Receipt Transaction (Mock)',
+          merchant_name: 'Sample Store',
+          amount: -25.99,
+          account_id: 'receipt_upload',
+          category: ['General'],
+          subcategory: ['Receipt Upload'],
+          iso_currency_code: 'USD',
+          source: 'receipt_textract',
+          upload_id: `receipt_upload_${timestamp}`,
+          upload_filename: fileName || 'receipt.jpg',
+          created_at: new Date().toISOString(),
+          duplicate_key: `receipt_${timestamp}_${randomId}`,
+          receipt_data: {
+            s3_key: key,
+            processing_status: 'mock_processed',
+            extracted_items: [
+              { description: 'Sample Item 1', amount: 15.99 },
+              { description: 'Sample Item 2', amount: 10.00 }
+            ]
+          }
+        };
+
+        // Save the mock transaction
+        await saveTransaction(mockTransaction);
+
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            message: 'Receipt processed successfully (demo mode)',
+            fileName: fileName,
+            transaction: mockTransaction,
+            note: 'This is mock data - full Textract integration coming soon'
+          }),
+        };
+      } catch (error) {
+        console.error('Receipt processing error:', error);
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ 
+            error: 'Receipt processing failed', 
+            details: error.message 
+          }),
+        };
+      }
+    }
+
     return {
       statusCode: 404,
       headers: corsHeaders,
@@ -287,27 +371,61 @@ function parseTruistCSV(headers, dataLines, uploadId, fileName) {
   console.log(`Truist parser - headers: ${headers.join(', ')}`);
   console.log(`Truist parser - processing ${dataLines.length} data lines`);
   
+  // Find column indices dynamically
+  const dateCol = findColumnIndex(headers, ['date', 'posted date', 'transaction date']);
+  const descCol = findColumnIndex(headers, ['description', 'memo', 'transaction']);
+  const debitCol = findColumnIndex(headers, ['debit', 'withdrawal', 'amount debit']);
+  const creditCol = findColumnIndex(headers, ['credit', 'deposit', 'amount credit']);
+  const amountCol = findColumnIndex(headers, ['amount', 'transaction amount']);
+  
+  console.log(`Truist column mapping - date: ${dateCol}, desc: ${descCol}, debit: ${debitCol}, credit: ${creditCol}, amount: ${amountCol}`);
+  
+  if (dateCol === -1 || descCol === -1) {
+    console.log('Could not find required date or description columns');
+    return transactions;
+  }
+  
   for (const line of dataLines) {
     if (!line) continue;
     
     const values = parseCSVLine(line);
     console.log(`Truist line values (${values.length}): ${values.join(' | ')}`);
-    if (values.length < 4) {
-      console.log(`Skipping line - not enough values: ${values.length}`);
+    if (values.length <= Math.max(dateCol, descCol)) {
+      console.log(`Skipping line - not enough values for required columns`);
       continue;
     }
     
     try {
-      const debit = parseFloat(values[4]) || 0;
-      const credit = parseFloat(values[5]) || 0;
-      const amount = credit > 0 ? credit : -debit;
-      console.log(`Truist amounts - debit: ${debit}, credit: ${credit}, final: ${amount}`);
+      let amount = 0;
+      
+      if (amountCol !== -1 && values[amountCol]) {
+        // Handle Truist format: ($133.08) for debits, $2,229.90 for credits
+        let amountStr = values[amountCol].toString().trim();
+        console.log(`Truist raw amount string: "${amountStr}"`);
+        
+        // Remove commas and dollar signs
+        amountStr = amountStr.replace(/[$,]/g, '');
+        
+        // Check for parentheses (negative)
+        if (amountStr.startsWith('(') && amountStr.endsWith(')')) {
+          amountStr = amountStr.slice(1, -1); // Remove parentheses
+          amount = -parseFloat(amountStr) || 0;
+        } else {
+          amount = parseFloat(amountStr) || 0;
+        }
+      } else {
+        const debit = (debitCol !== -1 && values[debitCol]) ? (parseFloat(values[debitCol]) || 0) : 0;
+        const credit = (creditCol !== -1 && values[creditCol]) ? (parseFloat(values[creditCol]) || 0) : 0;
+        amount = credit > 0 ? credit : -Math.abs(debit);
+      }
+      
+      console.log(`Truist parsed amount: ${amount} from debit/credit/amount columns`);
       
       const transaction = {
         id: `truist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        date: parseDate(values[2]),
-        name: values[3] || 'Unknown Transaction',
-        merchant_name: values[3] || 'Unknown Merchant',
+        date: parseDate(values[dateCol]),
+        name: values[descCol] || 'Unknown Transaction',
+        merchant_name: values[descCol] || 'Unknown Merchant',
         amount: amount,
         account_id: 'truist_manual',
         category: ['General'],
@@ -317,17 +435,22 @@ function parseTruistCSV(headers, dataLines, uploadId, fileName) {
         upload_id: uploadId,
         upload_filename: fileName,
         created_at: new Date().toISOString(),
-        duplicate_key: `${values[2]}_${values[3]}_${amount}_truist`
+        duplicate_key: `${values[dateCol]}_${values[descCol]}_${amount}_truist`
       };
+      
+      console.log(`Truist transaction created: ${transaction.name} - ${transaction.amount} on ${transaction.date}`);
       
       if (transaction.date && transaction.amount !== 0) {
         transactions.push(transaction);
+      } else {
+        console.log(`Skipping transaction - invalid date (${transaction.date}) or zero amount (${transaction.amount})`);
       }
     } catch (error) {
       console.error('Error parsing Truist line:', line, error);
     }
   }
   
+  console.log(`Truist parser returning ${transactions.length} transactions`);
   return transactions;
 }
 

@@ -5,7 +5,11 @@
 ### 1. Access Your Dashboard
 Visit: `http://bill-finance-ui-1750520483.s3-website-us-east-1.amazonaws.com`
 
-### 2. Upload Bank Transactions
+### 2. Upload Financial Data
+
+The system supports multiple data sources for comprehensive financial tracking:
+
+#### 📄 CSV Bank Transactions
 
 #### AMEX CSV Format
 Download from AMEX website with these columns:
@@ -30,21 +34,40 @@ Date,Description,Amount
 06/20/2025,Salary,3000.00
 ```
 
+#### 📸 Receipt Photos
+
+Upload photos of physical receipts for automatic processing:
+
+**Supported Formats:**
+- JPG, PNG images up to 10MB
+- Clear, well-lit photos work best
+- Include entire receipt with totals
+
+**Processing:**
+- Currently in demo mode with mock OCR data
+- Production ready for AWS Textract integration
+- Automatically creates transactions from receipt data
+
 ### 3. Upload Process
 
-1. **Select Bank Type**
+#### For CSV Files:
+1. **Select "Upload CSV" tab**
+2. **Choose Bank Type**
    - AMEX (American Express)
    - Truist (including BB&T/SunTrust)  
    - Generic (any standard format)
-
-2. **Drag & Drop or Click to Upload**
-   - File size limit: 5MB
-   - Format: CSV files only
+3. **Drag & Drop or Click to Upload**
+   - File size limit: 5MB, Format: CSV files only
    - Preview shows first 5 rows
+4. **View Results** - Success animation confirms upload
 
-3. **View Results**
-   - Success animation confirms upload
-   - Switch to Dashboard tab to see data
+#### For Receipt Photos:
+1. **Select "Upload Receipt" tab**
+2. **Take Photo or Upload Image**
+   - Use camera icon to capture receipt
+   - Or drag & drop existing photo
+3. **Processing** - Automatic OCR extraction (demo mode)
+4. **View Transaction** - Auto-created in dashboard
 
 ### 4. Dashboard Features
 

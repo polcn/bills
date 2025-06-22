@@ -19,12 +19,12 @@ async function initializeStorage() {
     console.log('Cold start detected - loading transactions from DynamoDB...');
     try {
       const transactions = await loadFromDynamoDB();
-      global.transactionStore = transactions;
+      global.transactionStore = transactions || [];
       global.storageInitialized = true;
       console.log(`Loaded ${transactions.length} transactions from DynamoDB`);
     } catch (error) {
       console.error('Failed to load from DynamoDB on cold start:', error);
-      global.transactionStore = [];
+      global.transactionStore = global.transactionStore || [];
       global.storageInitialized = true;
     }
   }
@@ -155,20 +155,7 @@ exports.api = async (event) => {
 
     if (httpMethod === 'GET' && path === '/transactions') {
       try {
-        // Initialize memory store if empty
-        if (!global.transactionStore || global.transactionStore.length === 0) {
-          global.transactionStore = [];
-          
-          // Load existing data from DynamoDB on cold start
-          try {
-            const dbTransactions = await loadFromDynamoDB();
-            global.transactionStore = dbTransactions;
-            console.log(`Lambda cold start - loaded ${dbTransactions.length} transactions from DynamoDB`);
-          } catch (error) {
-            console.error('Failed to load from DynamoDB:', error.message);
-            console.log('Lambda cold start - memory store initialized empty');
-          }
-        }
+        // Storage already initialized by initializeStorage() at start of function
         
         const transactions = global.transactionStore || [];
         
@@ -211,9 +198,19 @@ exports.api = async (event) => {
         let deletedCount = 0;
         
         for (const item of itemsToDelete) {
+          // Delete from memory
           const index = global.transactionStore.findIndex(t => t.id === item.id);
           if (index !== -1) {
             global.transactionStore.splice(index, 1);
+            
+            // Also delete from DynamoDB
+            try {
+              await deleteFromDynamoDB(item.id);
+              console.log(`Deleted from DynamoDB: ${item.id}`);
+            } catch (dbError) {
+              console.error(`Failed to delete from DynamoDB: ${item.id}`, dbError);
+            }
+            
             deletedCount++;
           }
         }
@@ -838,4 +835,28 @@ function generateDuplicateKey(date, description, amount) {
     .trim();
   
   return `${normalizedDate}_${cleanDesc}_${normalizedAmount}`;
+}
+
+async function deleteFromDynamoDB(transactionId) {
+  try {
+    const { DynamoDBClient, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+    
+    const client = new DynamoDBClient({ region: "us-east-1" });
+    const tableName = process.env.TRANSACTIONS_TABLE || "bill-finance-minimal-dev-transactions";
+    
+    const params = {
+      TableName: tableName,
+      Key: {
+        id: { S: transactionId }
+      }
+    };
+    
+    const command = new DeleteItemCommand(params);
+    await client.send(command);
+    console.log(`Successfully deleted from DynamoDB: ${transactionId}`);
+    
+  } catch (error) {
+    console.error("DynamoDB delete error:", error.message);
+    throw error;
+  }
 }

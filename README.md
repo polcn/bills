@@ -80,6 +80,7 @@ npm run build
 
 - **[Usage Guide](USAGE.md)** - How to use the dashboard
 - **[Deployment Guide](DEPLOYMENT.md)** - Technical deployment details
+- **[Issues & Fixes](ISSUES.md)** - Known issues and resolutions
 - **[API Documentation](API.md)** - REST API endpoints
 
 ## 🛠️ Tech Stack
@@ -159,6 +160,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 - ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab  
 - ✅ **Persistent Storage** - DynamoDB with cold-start loading and memory caching
 - ✅ **Cross-Source Detection** - Same transaction from multiple banks prevented
+- ✅ **Reliable Deletion** - Upload deletion works permanently (fixed DynamoDB sync)
 - ✅ **Multi-Source Ingestion** - CSV files and receipt photos
 - 📋 **Future:** Email receipt parsing, budget tracking, bill splitting, full Textract OCR
 

@@ -24,7 +24,7 @@
 - ✅ **Persistent DynamoDB Storage** - Data survives Lambda cold starts
 - ✅ **Memory Caching** - Fast access with automatic DynamoDB loading
 - ✅ **Advanced Duplicate Detection** - Cross-session and cross-source prevention
-- ✅ **Upload Management** - Delete functionality with DynamoDB sync
+- ✅ **Upload Management** - Delete functionality with permanent DynamoDB removal (FIXED)
 - ✅ **Transaction Count** - 275+ real transactions currently stored
 - ✅ **Cross-Source Deduplication** - Same transaction from multiple banks prevented
 

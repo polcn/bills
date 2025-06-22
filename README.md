@@ -155,9 +155,10 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 - ✅ **CSV Upload** - AMEX and Truist formats fully working
 - ✅ **Receipt Upload** - Photo upload with mock OCR processing (demo mode)
 - ✅ **Data Visualization** - Charts and statistics with real transaction data
-- ✅ **Duplicate Prevention** - Prevents duplicate transaction uploads
-- ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab
-- ✅ **Persistent Storage** - Lambda global storage (fast performance for demo)
+- ✅ **Duplicate Prevention** - Cross-session and cross-source duplicate detection
+- ✅ **Upload Management** - Delete uploads via "Manage Uploads" tab  
+- ✅ **Persistent Storage** - DynamoDB with cold-start loading and memory caching
+- ✅ **Cross-Source Detection** - Same transaction from multiple banks prevented
 - ✅ **Multi-Source Ingestion** - CSV files and receipt photos
 - 📋 **Future:** Email receipt parsing, budget tracking, bill splitting, full Textract OCR
 

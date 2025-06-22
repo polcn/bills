@@ -21,10 +21,12 @@
   - S3 bucket ready for production Textract integration
 
 ### Data Management
-- ✅ Persistent storage using Lambda global memory
-- ✅ Upload management with delete functionality
-- ✅ Transaction count: 275+ real transactions currently stored
-- ✅ Sort by date descending for latest transactions first
+- ✅ **Persistent DynamoDB Storage** - Data survives Lambda cold starts
+- ✅ **Memory Caching** - Fast access with automatic DynamoDB loading
+- ✅ **Advanced Duplicate Detection** - Cross-session and cross-source prevention
+- ✅ **Upload Management** - Delete functionality with DynamoDB sync
+- ✅ **Transaction Count** - 275+ real transactions currently stored
+- ✅ **Cross-Source Deduplication** - Same transaction from multiple banks prevented
 
 ### User Interface
 - ✅ Cyber-themed dark UI with neon accents
@@ -48,10 +50,11 @@
 - **Production Path:** Simple switch from mock to real OCR processing
 
 ### Storage Architecture
-- **Current:** Lambda global memory (optimal for demo performance)
-- **Performance:** Sub-second response times with 275+ transactions
-- **Persistence:** Data maintained during Lambda warm periods (10-15 minutes)
-- **Production Option:** DynamoDB integration available when needed
+- **Current:** Hybrid DynamoDB + Memory Architecture
+- **Persistence:** Full DynamoDB storage with automatic cold-start loading
+- **Performance:** Memory caching for sub-second response times
+- **Reliability:** Data survives Lambda cold starts and restarts
+- **Duplicate Prevention:** Cross-session duplicate detection via DynamoDB queries
 
 ## 🛠️ Technical Architecture
 
@@ -71,7 +74,7 @@
 - **API Gateway:** REST endpoints with CORS
 - **Lambda:** Serverless compute with 30s timeout
 - **S3:** Frontend hosting + CSV upload bucket
-- **DynamoDB:** Table exists but not currently in use (Lambda memory preferred for speed)
+- **DynamoDB:** Active persistent storage with hybrid memory caching
 
 ## 📋 Development Roadmap
 
@@ -95,4 +98,4 @@
 - CORS enabled for frontend-backend communication
 - Git repository ready for GitHub push
 
-*Last Updated: June 21, 2025*
+*Last Updated: June 22, 2025*

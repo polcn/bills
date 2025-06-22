@@ -10,11 +10,31 @@ const corsHeaders = {
 const TABLE_NAME = process.env.TRANSACTIONS_TABLE || 'bill-finance-minimal-dev-transactions';
 const RECEIPTS_BUCKET = process.env.RECEIPTS_BUCKET || 'bill-receipts-1750520483';
 
-// Persistent storage using Lambda environment (limited but works for demo)
+// Initialize persistent storage - load from DynamoDB on cold start
 global.transactionStore = global.transactionStore || [];
+global.storageInitialized = global.storageInitialized || false;
+
+async function initializeStorage() {
+  if (!global.storageInitialized) {
+    console.log('Cold start detected - loading transactions from DynamoDB...');
+    try {
+      const transactions = await loadFromDynamoDB();
+      global.transactionStore = transactions;
+      global.storageInitialized = true;
+      console.log(`Loaded ${transactions.length} transactions from DynamoDB`);
+    } catch (error) {
+      console.error('Failed to load from DynamoDB on cold start:', error);
+      global.transactionStore = [];
+      global.storageInitialized = true;
+    }
+  }
+}
 
 exports.api = async (event) => {
   console.log('API Request:', JSON.stringify(event, null, 2));
+  
+  // Ensure storage is initialized on every request
+  await initializeStorage();
 
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -368,7 +388,7 @@ function parseAmexCSV(headers, dataLines, uploadId, fileName) {
         upload_id: uploadId,
         upload_filename: fileName,
         created_at: new Date().toISOString(),
-        duplicate_key: `${values[0]}_${values[1]}_${amount}_amex`
+        duplicate_key: generateDuplicateKey(values[0], values[1], amount)
       };
       
       if (transaction.date && transaction.amount !== 0) {
@@ -489,7 +509,7 @@ function parseTruistCSV(headers, dataLines, uploadId, fileName) {
         upload_id: uploadId,
         upload_filename: fileName,
         created_at: new Date().toISOString(),
-        duplicate_key: `${values[dateCol]}_${description}_${amount}_truist`
+        duplicate_key: generateDuplicateKey(values[dateCol], description, amount)
       };
       
       console.log(`Truist transaction created: ID=${transaction.id}, Name="${transaction.name}", Amount=${transaction.amount}, Date="${transaction.date}"`);
@@ -554,7 +574,7 @@ function parseGenericCSV(headers, dataLines, uploadId, fileName) {
         upload_id: uploadId,
         upload_filename: fileName,
         created_at: new Date().toISOString(),
-        duplicate_key: `${values[dateCol]}_${values[descCol]}_${amount}_generic`
+        duplicate_key: generateDuplicateKey(values[dateCol], values[descCol], amount)
       };
       
       if (transaction.date && transaction.amount !== 0) {
@@ -649,10 +669,24 @@ function findColumnIndex(headers, searchTerms) {
 
 async function checkDuplicate(transaction) {
   try {
-    const existing = global.transactionStore.find(item => 
+    // First check memory store
+    const existingInMemory = global.transactionStore.find(item => 
       item.duplicate_key === transaction.duplicate_key
     );
-    return !!existing;
+    
+    if (existingInMemory) {
+      console.log(`Duplicate found in memory: ${transaction.duplicate_key}`);
+      return true;
+    }
+    
+    // Also check DynamoDB directly for cross-session duplicates
+    const existingInDB = await checkDuplicateInDynamoDB(transaction.duplicate_key);
+    if (existingInDB) {
+      console.log(`Duplicate found in DynamoDB: ${transaction.duplicate_key}`);
+      return true;
+    }
+    
+    return false;
   } catch (error) {
     console.error('Error checking duplicate:', error);
     return false;
@@ -672,6 +706,34 @@ async function saveTransaction(transaction) {
   }
   
   return {};
+}
+
+async function checkDuplicateInDynamoDB(duplicateKey) {
+  try {
+    const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
+    
+    const client = new DynamoDBClient({ region: 'us-east-1' });
+    const tableName = process.env.TRANSACTIONS_TABLE || 'bill-finance-minimal-dev-transactions';
+    
+    // Use GSI if available, otherwise scan with filter
+    const params = {
+      TableName: tableName,
+      FilterExpression: 'duplicate_key = :dup_key',
+      ExpressionAttributeValues: {
+        ':dup_key': { S: duplicateKey }
+      },
+      Limit: 1
+    };
+    
+    const { ScanCommand } = require('@aws-sdk/client-dynamodb');
+    const command = new ScanCommand(params);
+    const result = await client.send(command);
+    
+    return result.Items && result.Items.length > 0;
+  } catch (error) {
+    console.error('Error checking duplicate in DynamoDB:', error);
+    return false;
+  }
 }
 
 async function saveToDynamoDB(transaction) {
@@ -761,4 +823,19 @@ async function loadFromDynamoDB() {
     console.error('Error loading from DynamoDB:', error.message);
     return [];
   }
+}
+function generateDuplicateKey(date, description, amount) {
+  // Normalize inputs for cross-source duplicate detection
+  const normalizedDate = parseDate(date);
+  const normalizedDesc = description.toLowerCase().trim().replace(/\s+/g, ' ');
+  const normalizedAmount = Math.abs(parseFloat(amount)).toFixed(2);
+  
+  // Remove common bank-specific prefixes/suffixes that might differ
+  const cleanDesc = normalizedDesc
+    .replace(/^(pos|purchase|payment|transfer|deposit|withdrawal)\s+/i, '')
+    .replace(/\s+(pos|#\d+|\*\d+)$/i, '')
+    .replace(/\s+xx\d+$/i, '') // Remove card endings like xx1234
+    .trim();
+  
+  return `${normalizedDate}_${cleanDesc}_${normalizedAmount}`;
 }

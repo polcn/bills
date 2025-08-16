@@ -106,4 +106,26 @@
 - **Status:** Needs immediate investigation and proper fix
 - **Priority:** CRITICAL
 
-*Last Updated: June 22, 2025*
+## 🤖 Development Tools
+
+### MCP Servers Installed
+- **DynamoDB MCP**: Direct database management and debugging
+- **Ramp MCP**: Corporate expense management integration
+- **Puppeteer MCP**: Browser automation for testing
+- **AWS MCP**: AWS service integration
+- **Cloudflare MCP**: CDN and edge deployment
+- **Bright Data MCP**: Web scraping capabilities
+
+### AI Subagents Created
+Nine specialized subagents for focused development tasks:
+1. **dynamodb-debugger**: Database operations and bug fixes
+2. **csv-parser-specialist**: Bank CSV format handling
+3. **transaction-analyzer**: Financial insights and patterns
+4. **duplicate-detective**: Duplicate prevention algorithms
+5. **financial-reporter**: Report generation
+6. **receipt-processor**: OCR and receipt handling
+7. **aws-infrastructure**: AWS resource management
+8. **ui-enhancer**: Frontend improvements
+9. **data-migration**: Data import/export operations
+
+*Last Updated: August 16, 2025*

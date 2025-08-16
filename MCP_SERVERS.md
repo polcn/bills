@@ -53,6 +53,40 @@ This document lists all installed Model Context Protocol (MCP) servers available
   - Enrich transaction data with merchant information
   - Monitor subscription services and recurring charges
 
+### 5. DynamoDB MCP Server
+- **Name**: dynamodb
+- **Command**: `npx @imankamyabi/dynamodb-mcp-server`
+- **Scope**: User (global)
+- **Purpose**: Direct DynamoDB integration and management
+- **Use Cases**:
+  - Query and manage DynamoDB tables
+  - Schema design and optimization
+  - Access pattern modeling
+  - Data migration and backup
+- **Project Benefits**:
+  - Fix transaction deletion issues
+  - Optimize DynamoDB queries
+  - Manage transaction data directly
+  - Debug persistence problems
+  - Implement proper CRUD operations
+
+### 6. Ramp MCP Server
+- **Name**: ramp
+- **Command**: `npx @ramp/mcp-server`
+- **Scope**: User (global)
+- **Purpose**: Corporate card and expense management integration
+- **Use Cases**:
+  - Automated expense reconciliation
+  - Corporate card transaction sync
+  - Approval workflow automation
+  - Spend visibility and analytics
+- **Project Benefits**:
+  - Import corporate card transactions
+  - Automate expense categorization
+  - Track business spending patterns
+  - Integrate with accounting workflows
+  - Generate expense reports
+
 ## Usage
 
 These MCP servers are automatically available in Claude Code sessions. They provide specialized tools that Claude can use to interact with various services and perform specific tasks.
@@ -78,10 +112,15 @@ claude mcp remove <name>
 
 ## Additional Notes
 
-- AWS, Cloudflare, and Bright Data MCPs are installed globally (user scope) and available in all projects
+- AWS, Cloudflare, Bright Data, DynamoDB, and Ramp MCPs are installed globally (user scope) and available in all projects
 - Puppeteer MCP is installed locally for this project
 - MCP servers may require additional configuration (API keys, credentials) to function properly
 - Restart your Claude Code session after installing new MCPs to ensure they're loaded
-- Bright Data MCP may require API credentials for production use
+- Bright Data and Ramp MCPs may require API credentials for production use
+- DynamoDB MCP requires AWS credentials configured for DynamoDB access
 
-Last updated: 2025-06-22
+## Installation Status
+- DynamoDB MCP: Installed but requires AWS credentials configuration
+- Ramp MCP: Installed but requires Ramp API credentials
+
+Last updated: 2025-08-16

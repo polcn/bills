@@ -82,6 +82,8 @@ npm run build
 - **[Deployment Guide](DEPLOYMENT.md)** - Technical deployment details
 - **[Issues & Fixes](ISSUES.md)** - Known issues and resolutions
 - **[API Documentation](API.md)** - REST API endpoints
+- **[MCP Servers](MCP_SERVERS.md)** - Model Context Protocol integrations
+- **[Subagents](SUBAGENTS.md)** - Specialized AI assistants for development
 
 ## 🛠️ Tech Stack
 
@@ -106,17 +108,18 @@ npm run build
 
 ```
 bill/
-├── 📁 src/
-│   ├── handlers/          # Lambda function handlers
-│   ├── services/          # Business logic
-│   └── utils/             # Helper functions
+├── 📁 .claude/
+│   └── agents/            # Specialized AI subagents
 ├── 📁 frontend/           # React application
 │   ├── src/components/    # UI components
 │   └── src/services/      # API services
+├── 📄 handler.js         # Lambda function (all backend logic)
 ├── 📄 serverless.yml     # Infrastructure config
 ├── 📄 README.md          # This file
 ├── 📄 USAGE.md           # User guide
-└── 📄 DEPLOYMENT.md      # Deploy guide
+├── 📄 DEPLOYMENT.md      # Deploy guide
+├── 📄 MCP_SERVERS.md     # MCP documentation
+└── 📄 SUBAGENTS.md       # Subagent documentation
 ```
 
 ## 🔧 Environment Setup
